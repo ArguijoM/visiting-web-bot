@@ -1,5 +1,13 @@
+// bot.js
+// Código principal de visitas — exporta startBot() para que server.js lo invoque.
+
+const TARGETS = [
+  "https://purchase-request-status.onrender.com",
+  "https://projects-visualizer.onrender.com"
+];
+
+// Ajusta la zona horaria y valida horario laboral (México CDMX)
 function dentroHorario() {
-  // Fecha ajustada a zona horaria de México
   const ahora = new Date(
     new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" })
   );
@@ -12,32 +20,42 @@ function dentroHorario() {
 }
 
 async function visitarPagina(url) {
-  if (dentroHorario()) {
-    try {
-      const response = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
-      });
-      console.log(`✅ Visita a ${url}: ${response.status} -`, new Date().toLocaleString("es-MX"));
-    } catch (error) {
-      console.error(`⚠️ Error visitando ${url}:`, error.message);
-    }
-  } else {
+  if (!dentroHorario()) {
     console.log("⏸️ Fuera de horario laboral:", new Date().toLocaleString("es-MX"));
+    return;
+  }
+
+  try {
+    // Node 18+ tiene fetch global. Si usas Node <18, instala node-fetch y cambia aquí.
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VisitingWebBot/1.0"
+      },
+      //timeout: 15000 // si quieres un timeout, necesitarías AbortController
+    });
+
+    console.log(`✅ Visita a ${url}: ${response.status} - ${new Date().toLocaleString("es-MX")}`);
+  } catch (error) {
+    console.error(`⚠️ Error visitando ${url}:`, error && error.message ? error.message : error);
   }
 }
 
-// Función que maneja los ciclos de cada página por separado
+// Crea un ciclo independiente por cada URL
 function iniciarCiclo(url) {
   async function ciclo() {
     await visitarPagina(url);
-    const minutos = Math.floor(Math.random() * 14) + 1; // entre 1 y 14
+    const minutos = Math.floor(Math.random() * 14) + 1; // entre 1 y 14 minutos
     console.log(`🔁 Próxima visita a ${url} en ${minutos} minuto(s)\n`);
     setTimeout(ciclo, minutos * 60 * 1000);
   }
-
   ciclo(); // primera ejecución inmediata
 }
 
-// Iniciar ciclos independientes para ambas páginas
-iniciarCiclo("https://purchase-request-status.onrender.com");
-iniciarCiclo("https://projects-visualizer.onrender.com");
+// Función pública para arrancar todos los ciclos
+export function startBot(customTargets) {
+  const targets = Array.isArray(customTargets) && customTargets.length ? customTargets : TARGETS;
+  console.log("► Iniciando visiting-web-bot. Targets:", targets);
+  for (const url of targets) {
+    iniciarCiclo(url);
+  }
+}
